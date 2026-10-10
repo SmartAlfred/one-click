@@ -1,0 +1,37 @@
+# PostgreSQL: the database most projects start with.
+
+x-smartalfred:
+  name: PostgreSQL
+  description: The standard database for almost any project. A database, a user and a password are created for you, and the project's other services reach it by name.
+  category: Databases
+  website: https://www.postgresql.org
+  variables:
+    POSTGRES_DB:
+      label: Database name
+      default: app
+    POSTGRES_USER:
+      label: User
+      default: app
+    POSTGRES_PASSWORD:
+      generate: password
+  after: |
+    Services in this project connect with:
+
+    `postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}`
+
+    Give that to the app that uses it, as a secret (for example `DATABASE_URL`). To connect from your own computer, open a public port in the service's **Networking** tab.
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    expose:
+      - "5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+volumes:
+  postgres-data:

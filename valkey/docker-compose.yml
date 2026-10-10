@@ -1,0 +1,30 @@
+# Valkey: the open-source, Redis-compatible in-memory store.
+
+x-smartalfred:
+  name: Valkey
+  description: A Redis-compatible in-memory store for caching, queues and short-lived data. Protected by a generated password, and saved to disk so a restart doesn't empty it.
+  category: Databases
+  website: https://valkey.io
+  variables:
+    VALKEY_PASSWORD:
+      generate: password
+  after: |
+    Services in this project connect with:
+
+    `redis://:${VALKEY_PASSWORD}@valkey:6379`
+
+    Any Redis client works. Give that to the app that uses it, as a secret (for example `REDIS_URL`).
+
+services:
+  valkey:
+    image: valkey/valkey:9-alpine
+    expose:
+      - "6379"
+    environment:
+      # The image adds these to the server's command line.
+      VALKEY_EXTRA_FLAGS: --requirepass ${VALKEY_PASSWORD} --appendonly yes
+    volumes:
+      - valkey-data:/data
+
+volumes:
+  valkey-data:

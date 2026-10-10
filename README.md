@@ -85,6 +85,29 @@ Write `${NAME}` in the compose file and declare `NAME` under `x-smartalfred.vari
 | `required: true` | the form insists |
 | `secret: true` / `false` | whether values built from it are stored as secrets (default: yes for generated ones) |
 
+### The service's own address
+
+Some apps have to be told where they're reached (for webhooks, links in emails, redirects). For every
+public service of the file, smartalfred fills in two more variables when deploying, named after the
+service in capitals with `-` as `_`:
+
+| Variable | For a service called `n8n` in the project `tools` of `acme` |
+| --- | --- |
+| `${SMARTALFRED_N8N_URL}` | `https://n8n-tools-acme.smartalfred.com` |
+| `${SMARTALFRED_N8N_HOST}` | `n8n-tools-acme.smartalfred.com` |
+
+They work in `environment:` and in `after`. They aren't declared under `variables`. The other
+services of the file are reached by their names, as always (`http://meilisearch:7700`).
+
+The text under `after` can use any variable, generated ones too: it's shown once, to the person who
+deployed, together with the generated values (handy for a connection string).
+
+### Building an image
+
+A service can have `build: .` instead of `image:`, with a `Dockerfile` in the folder. It's then built
+on the server it runs on, from this repository (see `pocketbase/`). Prefer a published image where
+the project offers one.
+
 ## Good practice
 
 - **Name services after the app** (`umami`, `umami-db`, not `app`, `db`): a project can hold several
@@ -92,6 +115,9 @@ Write `${NAME}` in the compose file and declare `NAME` under `x-smartalfred.vari
 - **Pin what matters**: a major version for databases (`postgres:15-alpine`), so an upgrade is a decision.
 - **Generate every password**: nobody should have to think of one, and none should be in the file.
 - **Say what to do first** under `after`: the default login, what to change.
+- **Keep it small**: the fewer services, the more servers it fits on. Say so in the description when it needs real memory.
+- **Mind the licence**: say so in the description when something isn't open source in the usual sense.
+- **Slow starters** (more than half a minute to open their port) should be `always_on` and have a `health_path`, and say in `after` that the first start takes a while.
 
 ## Adding one
 

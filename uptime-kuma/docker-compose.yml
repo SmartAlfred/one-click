@@ -1,0 +1,25 @@
+# Uptime Kuma: monitor websites, APIs and services.
+
+x-smartalfred:
+  name: Uptime Kuma
+  description: Checks whether your websites, APIs and services are up, and tells you when they aren't. Status pages, many notification channels, a clear web interface.
+  category: Monitoring
+  website: https://uptime.kuma.pet
+  after: |
+    Open ${SMARTALFRED_UPTIME_KUMA_URL}, choose **SQLite** when it asks for a database (the simple choice: everything stays in its volume), and create the admin account. The first person to open it sets it up, so do that right away.
+
+    Then add monitors for the things you run, for example your services' addresses in this project.
+
+services:
+  uptime-kuma:
+    image: louislam/uptime-kuma:2
+    ports:
+      - "3001:3001"
+    volumes:
+      - uptime-kuma-data:/app/data
+    labels:
+      # It has to be awake to notice that something else isn't.
+      smartalfred.always_on: "true"
+
+volumes:
+  uptime-kuma-data:
