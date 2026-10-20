@@ -1,0 +1,29 @@
+# Valkey: the open-source, Redis-compatible in-memory store.
+
+[template]
+name = "Valkey"
+description = "A Redis-compatible in-memory store for caching, queues and short-lived data. Protected by a generated password, and saved to disk so a restart doesn't empty it."
+category = "Databases"
+website = "https://valkey.io"
+after = """
+Give it to the app that uses it as a variable (in the app's **Variables**, or its smartalfred.toml):
+
+`REDIS_URL = redis://default:${{valkey.VALKEY_PASSWORD}}@valkey:6379`
+
+smartalfred fills in the password, and keeps it up to date. Any Redis client works.
+"""
+
+[services.valkey]
+image = "valkey/valkey:9-alpine"
+port = 6379
+public = false
+# Through the image's own entrypoint, so the server still runs as the valkey user; the password
+# comes from its secret, not from this file.
+command = ["sh", "-c", 'exec docker-entrypoint.sh valkey-server --appendonly yes --requirepass "$VALKEY_PASSWORD"']
+
+[services.valkey.secrets]
+VALKEY_PASSWORD = "generate:32"
+
+[[services.valkey.volumes]]
+name = "valkey-data"
+path = "/data"

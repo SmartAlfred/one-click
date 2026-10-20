@@ -1,0 +1,32 @@
+# Meilisearch: fast full-text search with a simple API.
+
+[template]
+name = "Meilisearch"
+description = "Full-text search for websites, products and documents. Typo-tolerant, fast, and a single service; the master key is generated for you."
+category = "Search"
+website = "https://www.meilisearch.com"
+after = """
+The search API is at ${{meilisearch.URL}}
+
+Requests need a key. The master key (`MEILI_MASTER_KEY`, below) is for setting things up: use it to create an index and to read the two default keys at `/keys`, then give your app the **search** key and your backend the **admin** key, not the master key.
+
+The project's other services reach it at `http://meilisearch:7700`.
+"""
+
+[services.meilisearch]
+# Meilisearch's data format changes between versions: pinned to a minor, upgrade on purpose.
+image = "getmeili/meilisearch:v1.54"
+port = 7700
+always_on = true                  # search should answer at once, not after a wake-up
+health_path = "/health"
+
+[services.meilisearch.env]
+MEILI_ENV = "production"
+MEILI_NO_ANALYTICS = "true"
+
+[services.meilisearch.secrets]
+MEILI_MASTER_KEY = "generate:40"
+
+[[services.meilisearch.volumes]]
+name = "meilisearch-data"
+path = "/meili_data"

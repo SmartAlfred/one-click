@@ -1,0 +1,24 @@
+# Adminer: a database client in the browser.
+
+[template]
+name = "Adminer"
+description = "A small database client in the browser for PostgreSQL, MySQL/MariaDB, SQLite and more. Browse tables, run SQL, import and export. It sleeps when nobody uses it."
+category = "Databases"
+website = "https://www.adminer.org"
+after = """
+Open ${{adminer.URL}}, choose the kind of database, and log in with the database's own user and password. The server is the database's name in this project (filled in: `${DATABASE_HOST}`). For a database smartalfred made, the user and the database are both `app`, and its password is in its terminal: `echo $POSTGRES_PASSWORD` (`$MYSQL_PASSWORD` for MySQL).
+
+Adminer has no login of its own: anyone who finds the address sees the login page of your database. Delete the service when you're done, or keep the database password strong.
+"""
+
+[template.inputs.DATABASE_HOST]
+label = "Database"
+description = "The name of the database in this project, filled in on the login page."
+default = "postgres"
+
+[services.adminer]
+image = "adminer:5"
+port = 8080
+
+[services.adminer.env]
+ADMINER_DEFAULT_SERVER = "${DATABASE_HOST}"

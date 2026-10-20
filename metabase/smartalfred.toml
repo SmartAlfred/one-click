@@ -1,0 +1,33 @@
+# Metabase (open-source edition): dashboards and questions on your data.
+
+[template]
+name = "Metabase"
+description = "Ask questions of your data and build dashboards, with or without SQL. The open-source edition, with its own PostgreSQL for settings and saved questions. Needs about 2 GB of memory."
+category = "Analytics"
+website = "https://www.metabase.com"
+after = """
+The first start takes a minute or two; until then the dashboard may say it didn't answer in time. That clears by itself.
+
+Then open ${{metabase.URL}} and follow the setup: the first person to open it becomes the admin.
+
+To look at a database in this project, add it in Metabase with the database's name as the host (for example `postgres`, port 5432).
+"""
+
+[services.metabase]
+image = "metabase/metabase:latest"
+port = 3000
+always_on = true                  # it takes a minute to start: too long to wake for a visitor
+health_path = "/api/health"
+
+[services.metabase.env]
+MB_DB_TYPE = "postgres"
+MB_DB_HOST = "${{metabase-db.HOST}}"
+MB_DB_PORT = "${{metabase-db.PORT}}"
+MB_DB_DBNAME = "${{metabase-db.POSTGRES_DB}}"
+MB_DB_USER = "${{metabase-db.POSTGRES_USER}}"
+MB_DB_PASS = "${{metabase-db.POSTGRES_PASSWORD}}"
+MB_SITE_URL = "${{metabase.URL}}"
+MB_ANON_TRACKING_ENABLED = "false"
+
+[databases.metabase-db]
+engine = "postgres"

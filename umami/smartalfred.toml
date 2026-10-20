@@ -1,0 +1,26 @@
+# Umami: web analytics you host yourself.
+
+[template]
+name = "Umami"
+description = "Privacy-friendly web analytics you host yourself. A simple, fast alternative to Google Analytics, without cookies."
+category = "Analytics"
+website = "https://umami.is"
+after = """
+Open ${{umami.URL}} and log in with the username `admin` and the password `umami`.
+Change that password right away under **Settings → Profile**, then add your website and copy its tracking code.
+"""
+
+[services.umami]
+image = "ghcr.io/umami-software/umami:latest"
+port = 3000
+always_on = true                  # it collects page views around the clock: don't let it sleep
+health_path = "/api/heartbeat"
+
+[services.umami.env]
+DATABASE_URL = "${{umami-db.DATABASE_URL}}"
+
+[services.umami.secrets]
+APP_SECRET = "generate"
+
+[databases.umami-db]
+engine = "postgres"

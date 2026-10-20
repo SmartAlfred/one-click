@@ -1,0 +1,35 @@
+# PocketBase: a backend in one file. Database, auth, file storage and an admin UI.
+
+[template]
+name = "PocketBase"
+description = "A whole backend in one small service. SQLite database with a realtime API, user accounts, file storage and an admin dashboard. Ideal for MVPs, prototypes and small apps."
+category = "Backend"
+website = "https://pocketbase.io"
+after = """
+The dashboard is at ${{pocketbase.URL}}/_/
+
+Log in with `${ADMIN_EMAIL}` and the generated password (`PB_ADMIN_PASSWORD`, below). Your app's API is at ${{pocketbase.URL}}/api/
+
+Everything is in one volume: the database, uploaded files and settings.
+"""
+
+[template.inputs.ADMIN_EMAIL]
+label = "Admin email"
+description = "The address you log in to the dashboard with."
+required = true
+
+[services.pocketbase]
+# Built on your server from the Dockerfile next to this file.
+dockerfile = "Dockerfile"
+port = 8090
+health_path = "/api/health"
+
+[services.pocketbase.env]
+PB_ADMIN_EMAIL = "${ADMIN_EMAIL}"
+
+[services.pocketbase.secrets]
+PB_ADMIN_PASSWORD = "generate:24"
+
+[[services.pocketbase.volumes]]
+name = "pocketbase-data"
+path = "/pb/pb_data"

@@ -1,0 +1,171 @@
+# Langfuse: tracing, prompt management and evaluation for LLM applications.
+# After Langfuse's own docker-compose.yml (v4), with every secret generated and nothing but the
+# web interface reachable from outside. Postgres and Redis are smartalfred's own databases.
+
+[template]
+name = "Langfuse"
+description = "Tracing, prompt management, evaluation and debugging for LLM apps and agents. The whole stack: the app, its worker, ClickHouse, file storage, Postgres and Redis. Needs a server with at least 4 GB of free memory; 8 GB or more for real use."
+category = "AI"
+website = "https://langfuse.com"
+after = """
+The first start sets up two databases and takes a few minutes; until then the dashboard may say services didn't answer in time or restarted. That clears by itself.
+
+Then open ${{langfuse.URL}} and log in with `${ADMIN_EMAIL}` and the admin password (`LANGFUSE_INIT_USER_PASSWORD`, below). Nobody else can sign up: invite people from inside Langfuse.
+
+A first project is ready. For the Langfuse SDKs, with its keys from below:
+
+```
+LANGFUSE_HOST=${{langfuse.URL}}
+LANGFUSE_PUBLIC_KEY=<LANGFUSE_INIT_PROJECT_PUBLIC_KEY>
+LANGFUSE_SECRET_KEY=<LANGFUSE_INIT_PROJECT_SECRET_KEY>
+```
+
+An app in this project refers to them instead, and is kept up to date: `${{langfuse.LANGFUSE_INIT_PROJECT_SECRET_KEY}}`, and the same for the public key.
+
+Not set up: attaching images and audio to traces (the SDKs would have to reach the file storage from outside, and it is private here), and email. The other values below are the stack's own; you only need them to look into its parts.
+"""
+
+[template.inputs.ADMIN_EMAIL]
+label = "Admin email"
+description = "The address you log in with."
+required = true
+
+# ---------- the web app ----------
+
+[services.langfuse]
+image = "docker.langfuse.com/langfuse/langfuse:4"
+port = 3000
+always_on = true                  # traces arrive at any time
+health_path = "/api/public/health"
+
+[services.langfuse.env]
+NEXTAUTH_URL = "${{langfuse.URL}}"
+DATABASE_URL = "${{langfuse-db.DATABASE_URL}}"
+TELEMETRY_ENABLED = "false"
+CLICKHOUSE_MIGRATION_URL = "clickhouse://langfuse-clickhouse:9000"
+CLICKHOUSE_URL = "http://langfuse-clickhouse:8123"
+CLICKHOUSE_USER = "langfuse"
+CLICKHOUSE_PASSWORD = "${{langfuse-clickhouse.CLICKHOUSE_PASSWORD}}"
+CLICKHOUSE_CLUSTER_ENABLED = "false"
+REDIS_HOST = "langfuse-redis"
+REDIS_PORT = "6379"
+REDIS_AUTH = "${{langfuse-redis.REDIS_PASSWORD}}"
+LANGFUSE_S3_EVENT_UPLOAD_BUCKET = "langfuse"
+LANGFUSE_S3_EVENT_UPLOAD_REGION = "auto"
+LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID = "${{langfuse-storage.MINIO_ROOT_USER}}"
+LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY = "${{langfuse-storage.MINIO_ROOT_PASSWORD}}"
+LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT = "http://langfuse-storage:9000"
+LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE = "true"
+LANGFUSE_S3_EVENT_UPLOAD_PREFIX = "events/"
+LANGFUSE_S3_MEDIA_UPLOAD_BUCKET = "langfuse"
+LANGFUSE_S3_MEDIA_UPLOAD_REGION = "auto"
+LANGFUSE_S3_MEDIA_UPLOAD_ACCESS_KEY_ID = "${{langfuse-storage.MINIO_ROOT_USER}}"
+LANGFUSE_S3_MEDIA_UPLOAD_SECRET_ACCESS_KEY = "${{langfuse-storage.MINIO_ROOT_PASSWORD}}"
+LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT = "http://langfuse-storage:9000"
+LANGFUSE_S3_MEDIA_UPLOAD_FORCE_PATH_STYLE = "true"
+LANGFUSE_S3_MEDIA_UPLOAD_PREFIX = "media/"
+# The admin and a first project are made on the first start; nobody can sign up after.
+AUTH_DISABLE_SIGNUP = "true"
+LANGFUSE_INIT_ORG_ID = "main"
+LANGFUSE_INIT_ORG_NAME = "My organization"
+LANGFUSE_INIT_PROJECT_ID = "first-project"
+LANGFUSE_INIT_PROJECT_NAME = "First project"
+LANGFUSE_INIT_USER_EMAIL = "${ADMIN_EMAIL}"
+LANGFUSE_INIT_USER_NAME = "Admin"
+
+[services.langfuse.secrets]
+SALT = "generate"
+ENCRYPTION_KEY = { generate = 64, hex = true }   # read as 32 bytes
+NEXTAUTH_SECRET = "generate"
+LANGFUSE_INIT_USER_PASSWORD = "generate:24"
+LANGFUSE_INIT_PROJECT_PUBLIC_KEY = { generate = 32, prefix = "pk-lf-" }
+LANGFUSE_INIT_PROJECT_SECRET_KEY = { generate = 40, prefix = "sk-lf-" }
+
+# ---------- the worker: queues, ingestion, evaluations ----------
+
+[services.langfuse-worker]
+image = "docker.langfuse.com/langfuse/langfuse-worker:4"
+port = 3030
+public = false
+
+[services.langfuse-worker.env]
+NEXTAUTH_URL = "${{langfuse.URL}}"
+DATABASE_URL = "${{langfuse-db.DATABASE_URL}}"
+SALT = "${{langfuse.SALT}}"
+ENCRYPTION_KEY = "${{langfuse.ENCRYPTION_KEY}}"
+TELEMETRY_ENABLED = "false"
+CLICKHOUSE_MIGRATION_URL = "clickhouse://langfuse-clickhouse:9000"
+CLICKHOUSE_URL = "http://langfuse-clickhouse:8123"
+CLICKHOUSE_USER = "langfuse"
+CLICKHOUSE_PASSWORD = "${{langfuse-clickhouse.CLICKHOUSE_PASSWORD}}"
+CLICKHOUSE_CLUSTER_ENABLED = "false"
+REDIS_HOST = "langfuse-redis"
+REDIS_PORT = "6379"
+REDIS_AUTH = "${{langfuse-redis.REDIS_PASSWORD}}"
+LANGFUSE_S3_EVENT_UPLOAD_BUCKET = "langfuse"
+LANGFUSE_S3_EVENT_UPLOAD_REGION = "auto"
+LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID = "${{langfuse-storage.MINIO_ROOT_USER}}"
+LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY = "${{langfuse-storage.MINIO_ROOT_PASSWORD}}"
+LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT = "http://langfuse-storage:9000"
+LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE = "true"
+LANGFUSE_S3_EVENT_UPLOAD_PREFIX = "events/"
+LANGFUSE_S3_MEDIA_UPLOAD_BUCKET = "langfuse"
+LANGFUSE_S3_MEDIA_UPLOAD_REGION = "auto"
+LANGFUSE_S3_MEDIA_UPLOAD_ACCESS_KEY_ID = "${{langfuse-storage.MINIO_ROOT_USER}}"
+LANGFUSE_S3_MEDIA_UPLOAD_SECRET_ACCESS_KEY = "${{langfuse-storage.MINIO_ROOT_PASSWORD}}"
+LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT = "http://langfuse-storage:9000"
+LANGFUSE_S3_MEDIA_UPLOAD_FORCE_PATH_STYLE = "true"
+LANGFUSE_S3_MEDIA_UPLOAD_PREFIX = "media/"
+
+# ---------- ClickHouse: traces, observations, scores ----------
+
+[services.langfuse-clickhouse]
+image = "clickhouse/clickhouse-server:25.12"
+port = 8123
+public = false
+
+[services.langfuse-clickhouse.env]
+CLICKHOUSE_DB = "default"
+CLICKHOUSE_USER = "langfuse"
+
+[services.langfuse-clickhouse.secrets]
+CLICKHOUSE_PASSWORD = "generate:32"
+
+[[services.langfuse-clickhouse.volumes]]
+name = "langfuse-clickhouse-data"
+path = "/var/lib/clickhouse"
+
+[[services.langfuse-clickhouse.volumes]]
+name = "langfuse-clickhouse-logs"
+path = "/var/log/clickhouse-server"
+
+# ---------- file storage for the raw events ----------
+
+[services.langfuse-storage]
+# S3-compatible storage, as in Langfuse's own compose file. MinIO's open-source edition is no
+# longer developed upstream; here it's reachable only by Langfuse.
+image = "cgr.dev/chainguard/minio"
+port = 9000
+public = false
+entrypoint = ["sh", "-c"]
+# Makes the bucket (a directory) before the server starts.
+command = ["mkdir -p /data/langfuse && minio server --address :9000 --console-address :9001 /data"]
+
+[services.langfuse-storage.env]
+MINIO_ROOT_USER = "langfuse"
+
+[services.langfuse-storage.secrets]
+MINIO_ROOT_PASSWORD = "generate:32"
+
+[[services.langfuse-storage.volumes]]
+name = "langfuse-storage-data"
+path = "/data"
+
+# ---------- smartalfred's own databases: private, always on, a snapshot every day ----------
+
+[databases.langfuse-db]
+engine = "postgres"
+
+[databases.langfuse-redis]
+engine = "redis"
+memory = "512MB"                  # the queues live here: more room than a Redis gets by default

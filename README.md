@@ -10,109 +10,125 @@ folder merged here shows up on the page by itself.
 ## How it's laid out
 
 One folder per deploy. The folder's name is its address (`umami` → `smartalfred.com/one-click/umami`),
-and it holds one `docker-compose.yml`:
+and it holds one `smartalfred.toml`:
 
 ```
 umami/
-  docker-compose.yml
+  smartalfred.toml
 ```
 
-The compose file is an ordinary one. What smartalfred shows for it lives in the same file, under
-`x-smartalfred` (compose ignores keys that start with `x-`, so the file still works with
-`docker compose up`).
+It's the same file a project keeps beside its code ([its docs](https://smartalfred.com/docs/smartalfred-toml)):
+services, databases and buckets, wired together with references, secrets generated. What the
+catalog shows for it lives in the same file, under `[template]`.
 
-```yaml
-x-smartalfred:
-  name: Umami                     # required
-  description: Privacy-friendly web analytics you host yourself.
-  category: Analytics
-  website: https://umami.is
-  logo: logo.svg                  # optional: a file in the folder, or a URL
-  variables:
-    POSTGRES_PASSWORD:
-      generate: password          # made up at deploy time, stored as a secret
-    APP_SECRET:
-      generate: hex
-    ADMIN_EMAIL:                  # asked for in the form
-      label: Admin email
-      description: Where password resets go.
-      required: true
-  after: |                        # shown after deploying (Markdown)
-    Log in with `admin` / `umami` and change the password.
+```toml
+[template]
+name = "Umami"                    # required
+description = "Privacy-friendly web analytics you host yourself."
+category = "Analytics"
+website = "https://umami.is"
+logo = "logo.svg"                 # optional: a file in the folder, or a URL
+after = """
+Open ${{umami.URL}} and log in with `admin` / `umami`, then change the password.
+"""
 
-services:
-  umami:
-    image: ghcr.io/umami-software/umami:latest
-    ports: ["3000:3000"]
-    environment:
-      DATABASE_URL: postgresql://umami:${POSTGRES_PASSWORD}@umami-db:5432/umami
-  umami-db:
-    image: postgres:15-alpine
-    volumes: ["umami-db-data:/var/lib/postgresql/data"]
+[template.inputs.ADMIN_EMAIL]     # asked for in the form
+label = "Admin email"
+description = "Where password resets go."
+required = true
+
+[services.umami]
+image = "ghcr.io/umami-software/umami:latest"
+port = 3000
+always_on = true
+health_path = "/api/heartbeat"
+
+[services.umami.env]
+DATABASE_URL = "${{umami-db.DATABASE_URL}}"
+ADMIN_EMAIL = "${ADMIN_EMAIL}"
+
+[services.umami.secrets]
+APP_SECRET = "generate"
+
+[databases.umami-db]
+engine = "postgres"
 ```
 
-## What the compose file means on smartalfred
+## What the file means
+
+Everything outside `[template]` is an ordinary smartalfred.toml, and deploying the folder makes
+what it says, the way a deploy of a project's own file makes it. In short:
 
 | In the file | On smartalfred |
 | --- | --- |
-| a service with `ports:` | public: it gets an HTTPS address (the first port is the one served) |
-| a service without `ports:` | private: reachable only by the other services, as `name:port` |
-| `environment:` | variables; a value built from a generated or secret variable is stored as a secret |
-| named `volumes:` | volumes that keep their data across deploys |
-| `command:`, `entrypoint:` | taken over |
-| `depends_on:`, `restart:`, `networks:` | not needed: services of a project share a private network, and private ones start first |
-| bind mounts (`./file:/path`) | skipped: there's no machine to take the file from |
+| `[services.<name>]` with `image` | a service running that image. Public (an HTTPS address) unless `public = false` |
+| `port` | where it listens (`$PORT` is set to it) |
+| `[services.<name>.env]` | its variables |
+| `[services.<name>.secrets]` | its secrets: `"generate"` makes one when deploying (`"generate:32"` for a length; `{ generate = 64, hex = true }` for hex digits; `{ generate = 32, prefix = "sk-" }` for keys that start a certain way) |
+| `[[services.<name>.volumes]]` | volumes that keep their data across deploys (`name`, `path`) |
+| `command`, `entrypoint` | instead of the image's |
+| `always_on`, `health_path`, `memory` | never asleep; a path that answers once it's ready; its size |
+| `[databases.<name>]` | a Postgres, MySQL or Redis made the way the dashboard makes one: private, always on, a snapshot every day |
+| `[buckets.<name>]` | a bucket (files over S3) |
 
-Labels for what compose can't say:
+Services reach each other by name (`http://meilisearch:7700`), and read each other's values with
+**references**: `${{umami-db.DATABASE_URL}}`, `${{langfuse.SALT}}`, `${{n8n.URL}}`. smartalfred fills
+them in for the containers and keeps them up to date. What a reference can read:
 
-| Label | Meaning |
+| Of | |
 | --- | --- |
-| `smartalfred.public: "true"` / `"false"` | public or private, whatever `ports:` says |
-| `smartalfred.always_on: "true"` | never sleeps (by default a public service sleeps when idle and wakes on the next request) |
-| `smartalfred.health_path: /health` | a path that answers once the app is ready; a new version takes over only then |
+| any service | `URL` (its HTTPS address when it's public), `HOST` (its name inside the project), `PORT`, `NAME`; a service reads only these of itself |
+| a service of the file | its variables and secrets: a password generated once and shared by several services lives on one, and the others refer to it |
+| a Postgres database | `DATABASE_URL`, `POSTGRES_USER`, `POSTGRES_DB`, `POSTGRES_PASSWORD` |
+| a MySQL database | `DATABASE_URL`, `MYSQL_USER`, `MYSQL_DATABASE`, `MYSQL_PASSWORD` |
+| a Redis database | `REDIS_URL`, `REDIS_PASSWORD` |
+| a bucket | `S3_ENDPOINT`, `S3_BUCKET`, `S3_REGION`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` |
 
-### Variables
+A reference goes one level: point at the value itself, not at another service's reference to it.
+And a one-click deploy may go into an empty project, so its references point only at what its own
+file makes.
 
-Write `${NAME}` in the compose file and declare `NAME` under `x-smartalfred.variables`:
+### What the form asks for
+
+Declare each value under `[template.inputs.NAME]` and write `${NAME}` where it goes, in `env`
+values and in `after` (`$$` is a `$` of its own):
 
 | Key | Meaning |
 | --- | --- |
-| `generate: password` | 32 letters and digits, made up when deploying (safe inside a connection URL) |
-| `generate: hex` | a 64-character hex key |
-| `length: 48` | another length for a generated value (8 to 128) |
 | `label`, `description` | how the form asks for it |
 | `default` | used when the form is left empty |
-| `required: true` | the form insists |
-| `secret: true` / `false` | whether values built from it are stored as secrets (default: yes for generated ones) |
+| `required = true` | the form insists |
 
-### The service's own address
+A secret the person deploying has to give (an API key) is `"ask"` under the service's `secrets`, as
+in any smartalfred.toml: the form asks for it as a secret, and every service that asks for it by
+that name gets it. Give it a label with an input of the same name (no default, and not written as
+`${NAME}`: the services that need it ask for it, or refer to it).
 
-Some apps have to be told where they're reached (for webhooks, links in emails, redirects). For every
-public service of the file, smartalfred fills in two more variables when deploying, named after the
-service in capitals with `-` as `_`:
+### After deploying
 
-| Variable | For a service called `n8n` in the project `tools` of `acme` |
-| --- | --- |
-| `${SMARTALFRED_N8N_URL}` | `https://n8n-tools-acme.smartalfred.com` |
-| `${SMARTALFRED_N8N_HOST}` | `n8n-tools-acme.smartalfred.com` |
-
-They work in `environment:` and in `after`. They aren't declared under `variables`. The other
-services of the file are reached by their names, as always (`http://meilisearch:7700`).
-
-The text under `after` can use any variable, generated ones too: it's shown once, to the person who
-deployed, together with the generated values (handy for a connection string).
+`after` (Markdown) is shown once, to the person who deployed, together with the generated secrets.
+`${{name.URL}}` (and `HOST`, `PORT`, `NAME`) of what the file makes are filled in there, and the
+inputs too. Other references stay as written, so `${{postgres.DATABASE_URL}}` in `after` tells
+people what to put in their own app.
 
 ### Building an image
 
-A service can have `build: .` instead of `image:`, with a `Dockerfile` in the folder. It's then built
-on the server it runs on, from this repository (see `pocketbase/`). Prefer a published image where
-the project offers one.
+A service can have `dockerfile = "Dockerfile"` instead of `image`, with a `Dockerfile` in the folder.
+It's then built on the server it runs on, from this repository (see `pocketbase/`). Prefer a
+published image where the project offers one.
+
+### What a one-click deploy can't say
+
+`project` and `organization` (it goes into the project it's deployed to), `[computers]`, and
+`domains` (a domain is someone's own).
 
 ## Good practice
 
-- **Name services after the app** (`umami`, `umami-db`, not `app`, `db`): a project can hold several
-  deploys, and two services can't share a name.
-- **Pin what matters**: a major version for databases (`postgres:15-alpine`), so an upgrade is a decision.
+- **Name things after the app** (`umami`, `umami-db`, not `app`, `db`): a project can hold several
+  deploys, and two things can't share a name.
+- **Use smartalfred's databases** (`[databases.x]`) for Postgres, MySQL and Redis: they come with
+  daily snapshots, and apps get their URL by reference. Run another image only for what they aren't.
+- **Pin what matters**: a major version for images whose data format changes (`getmeili/meilisearch:v1.54`).
 - **Generate every password**: nobody should have to think of one, and none should be in the file.
 - **Say what to do first** under `after`: the default login, what to change.
 - **Keep it small**: the fewer services, the more servers it fits on. Say so in the description when it needs real memory.
@@ -121,7 +137,8 @@ the project offers one.
 
 ## Adding one
 
-1. Fork, add a folder with a `docker-compose.yml`, open a pull request.
-2. Try it before: `docker compose up` locally with the variables set.
+1. Fork, add a folder with a `smartalfred.toml`, open a pull request.
+2. Try it before: put the file (without `[template]`, with values for any `${…}`) in an empty
+   directory and run `smartalfred deploy` into a test project.
 3. A folder that can't be read is left out of the catalog; `https://api.smartalfred.com/api/v1/templates`
    lists such folders under `problems`, with the reason.
