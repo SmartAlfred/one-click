@@ -1,0 +1,60 @@
+# Ollama with Open WebUI: open language models on your own server, a chat page in front of them,
+# and an API the project's other services can use. smartalfred's servers have no GPUs, so the
+# models run on CPU: small ones (up to about 8B parameters) answer at reading speed, bigger ones slowly.
+
+[template]
+name = "Ollama + Open WebUI"
+description = "Open language models (Llama, Qwen, Gemma, Mistral) running privately, with a ChatGPT-like page in front and an API for your apps. Runs on CPU, so best with small models. Needs about 12GB of memory."
+category = "AI"
+website = "https://ollama.com"
+after = """
+Open ${{open-webui.URL}} and create your account: the first one becomes the admin, so do that right away. The first start takes a minute or two.
+
+**${MODEL}** downloads by itself on Ollama's first start (a few GB, a few minutes); it shows up in the model list once it's there. Pull others from Open WebUI (**Admin Panel → Settings → Models**), or name another one under **MODEL** in ollama's variables and redeploy. Larger models need more memory: give ollama a bigger size first.
+
+The project's other services reach Ollama's API at `http://ollama:11434`, also OpenAI-compatible at `http://ollama:11434/v1`. It has no login of its own, so it stays private.
+"""
+
+[template.inputs.MODEL]
+label = "Model"
+description = "Downloaded on the first start, from ollama.com/library. Small ones suit a CPU: llama3.2:3b, qwen2.5:3b, gemma3:4b."
+default = "llama3.2:3b"
+
+[services.ollama]
+image = "ollama/ollama:latest"
+port = 11434
+public = false
+memory = "8GB"
+health_path = "/api/version"
+# Serves at once, then pulls the model in the background (quick when it's there already).
+entrypoint = "/bin/sh"
+command = ["-c", "ollama serve & until ollama list >/dev/null 2>&1; do sleep 1; done; ollama pull \"$MODEL\"; wait"]
+
+[services.ollama.env]
+MODEL = "${MODEL}"
+OLLAMA_HOST = "0.0.0.0:11434"
+OLLAMA_KEEP_ALIVE = "10m"         # a model leaves memory 10 minutes after its last answer
+
+[[services.ollama.volumes]]
+name = "ollama-models"
+path = "/root/.ollama"
+
+[services.open-webui]
+image = "ghcr.io/open-webui/open-webui:main"
+port = 8080
+always_on = true                  # a slow starter: it loads its own small models first
+health_path = "/health"
+
+[services.open-webui.env]
+OLLAMA_BASE_URL = "http://${{ollama.HOST}}:${{ollama.PORT}}"
+WEBUI_URL = "${{open-webui.URL}}"
+SCARF_NO_ANALYTICS = "true"
+DO_NOT_TRACK = "true"
+ANONYMIZED_TELEMETRY = "false"
+
+[services.open-webui.secrets]
+WEBUI_SECRET_KEY = "generate"
+
+[[services.open-webui.volumes]]
+name = "open-webui-data"
+path = "/app/backend/data"
