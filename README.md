@@ -73,7 +73,7 @@ what it says, the way a deploy of a project's own file makes it. In short:
 | `[[services.<name>.volumes]]` | volumes that keep their data across deploys (`name`, `path`) |
 | `command`, `entrypoint` | instead of the image's |
 | `always_on`, `health_path`, `memory` | never asleep; a path that answers once it's ready; its size |
-| `[databases.<name>]` | a Postgres, MySQL or Redis made the way the dashboard makes one: private, always on, a snapshot every day |
+| `[databases.<name>]` | a Postgres, MySQL, Redis or MongoDB made the way the dashboard makes one: private, always on, a snapshot every day |
 | `[buckets.<name>]` | a bucket (files over S3) |
 
 Services reach each other by name (`http://meilisearch:7700`), and read each other's values with
@@ -87,6 +87,7 @@ them in for the containers and keeps them up to date. What a reference can read:
 | a Postgres database | `DATABASE_URL`, `POSTGRES_USER`, `POSTGRES_DB`, `POSTGRES_PASSWORD` |
 | a MySQL database | `DATABASE_URL`, `MYSQL_USER`, `MYSQL_DATABASE`, `MYSQL_PASSWORD` |
 | a Redis database | `REDIS_URL`, `REDIS_PASSWORD` |
+| a MongoDB database | `MONGODB_URI`, `MONGO_USER`, `MONGO_PASSWORD`, `MONGO_INITDB_DATABASE` |
 | a bucket | `S3_ENDPOINT`, `S3_BUCKET`, `S3_REGION`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` |
 
 A reference goes one level: point at the value itself, not at another service's reference to it.
@@ -131,7 +132,7 @@ published image where the project offers one.
 
 - **Name things after the app** (`umami`, `umami-db`, not `app`, `db`): a project can hold several
   deploys, and two things can't share a name.
-- **Use smartalfred's databases** (`[databases.x]`) for Postgres, MySQL and Redis: they come with
+- **Use smartalfred's databases** (`[databases.x]`) for Postgres, MySQL, Redis and MongoDB: they come with
   daily snapshots, and apps get their URL by reference. Run another image only for what they aren't.
 - **Pin what matters**: a major version for images whose data format changes (`getmeili/meilisearch:v1.54`).
 - **Generate every password**: nobody should have to think of one, and none should be in the file.
