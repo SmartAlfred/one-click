@@ -10,12 +10,17 @@ folder merged here shows up on the page by itself.
 ## How it's laid out
 
 One folder per deploy. The folder's name is its address (`umami` → `smartalfred.com/one-click/umami`),
-and it holds one `smartalfred.toml`:
+and it holds one `smartalfred.toml`, and a `README.md` saying what the app is:
 
 ```
 umami/
   smartalfred.toml
+  README.md
 ```
+
+The `README.md` is the longer text on the deploy's page (the catalog's card shows only the
+`description`): what the app is, what people use it for, and what's good to know about this setup.
+Its `# Title` line is left out there; `###` headings, lists, **bold**, `code` and links are shown.
 
 It's the same file a project keeps beside its code ([its docs](https://smartalfred.com/docs/smartalfred-toml)):
 services, databases and buckets, wired together with references, secrets generated. What the
@@ -131,6 +136,7 @@ published image where the project offers one.
 - **Pin what matters**: a major version for images whose data format changes (`getmeili/meilisearch:v1.54`).
 - **Generate every password**: nobody should have to think of one, and none should be in the file.
 - **Say what to do first** under `after`: the default login, what to change.
+- **Say what it's for** in the folder's `README.md`: what it is, what people use it for, what's good to know.
 - **Keep it small**: the fewer services, the more servers it fits on. Say so in the description when it needs real memory.
 - **Mind the licence**: say so in the description when something isn't open source in the usual sense.
 - **Slow starters** (more than half a minute to open their port) should be `always_on` and have a `health_path`, and say in `after` that the first start takes a while.
