@@ -5,6 +5,7 @@ name = "Adminer"
 description = "A small database client in the browser for PostgreSQL, MySQL/MariaDB, SQLite and more. Browse tables, run SQL, import and export. It sleeps when nobody uses it."
 category = "Databases"
 website = "https://www.adminer.org"
+logo = "logo.svg"
 after = """
 Open ${{adminer.URL}}, choose the kind of database, and log in with the database's own user and password. The server is the database's name in this project (filled in: `${DATABASE_HOST}`). For a database smartalfred made, the user and the database are both `app`, and its password is in its terminal: `echo $POSTGRES_PASSWORD` (`$MYSQL_PASSWORD` for MySQL).
 

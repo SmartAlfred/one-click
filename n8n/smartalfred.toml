@@ -7,6 +7,7 @@ name = "n8n"
 description = "Workflow automation with a visual editor. Connect APIs, react to webhooks, run things on a schedule. Source-available (Sustainable Use License), free for your own use."
 category = "Automation"
 website = "https://n8n.io"
+logo = "logo.svg"
 after = """
 Open ${{n8n.URL}} and create the owner account: the first person to open it sets it up, so do that right away.
 

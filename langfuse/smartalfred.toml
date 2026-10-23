@@ -7,6 +7,7 @@ name = "Langfuse"
 description = "Tracing, prompt management, evaluation and debugging for LLM apps and agents. The whole stack: the app, its worker, ClickHouse, file storage, Postgres and Redis. Needs a server with at least 4 GB of free memory; 8 GB or more for real use."
 category = "AI"
 website = "https://langfuse.com"
+logo = "logo.svg"
 after = """
 The first start sets up two databases and takes a few minutes; until then the dashboard may say services didn't answer in time or restarted. That clears by itself.
 

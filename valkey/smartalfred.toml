@@ -5,6 +5,7 @@ name = "Valkey"
 description = "A Redis-compatible in-memory store for caching, queues and short-lived data. Protected by a generated password, and saved to disk so a restart doesn't empty it."
 category = "Databases"
 website = "https://valkey.io"
+logo = "logo.svg"
 after = """
 Give it to the app that uses it as a variable (in the app's **Variables**, or its smartalfred.toml):
 

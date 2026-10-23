@@ -5,6 +5,7 @@ name = "PocketBase"
 description = "A whole backend in one small service. SQLite database with a realtime API, user accounts, file storage and an admin dashboard. Ideal for MVPs, prototypes and small apps."
 category = "Backend"
 website = "https://pocketbase.io"
+logo = "logo.svg"
 after = """
 The dashboard is at ${{pocketbase.URL}}/_/
 

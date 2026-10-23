@@ -5,6 +5,7 @@ name = "Meilisearch"
 description = "Full-text search for websites, products and documents. Typo-tolerant, fast, and a single service; the master key is generated for you."
 category = "Search"
 website = "https://www.meilisearch.com"
+logo = "logo.svg"
 after = """
 The search API is at ${{meilisearch.URL}}
 

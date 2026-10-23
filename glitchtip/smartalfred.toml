@@ -5,6 +5,7 @@ name = "GlitchTip"
 description = "Error tracking and performance monitoring for your apps, compatible with Sentry's SDKs. See what breaks right after a deploy. Light on memory (about 512 MB)."
 category = "Monitoring"
 website = "https://glitchtip.com"
+logo = "logo.svg"
 after = """
 The first start sets up its database and takes two to three minutes; until then the dashboard may say it didn't answer in time. That clears by itself.
 

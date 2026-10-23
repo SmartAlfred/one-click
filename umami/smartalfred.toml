@@ -5,6 +5,7 @@ name = "Umami"
 description = "Privacy-friendly web analytics you host yourself. A simple, fast alternative to Google Analytics, without cookies."
 category = "Analytics"
 website = "https://umami.is"
+logo = "logo.svg"
 after = """
 Open ${{umami.URL}} and log in with the username `admin` and the password `umami`.
 Change that password right away under **Settings → Profile**, then add your website and copy its tracking code.

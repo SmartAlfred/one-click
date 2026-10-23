@@ -5,6 +5,7 @@ name = "Metabase"
 description = "Ask questions of your data and build dashboards, with or without SQL. The open-source edition, with its own PostgreSQL for settings and saved questions. Needs about 2 GB of memory."
 category = "Analytics"
 website = "https://www.metabase.com"
+logo = "logo.svg"
 after = """
 The first start takes a minute or two; until then the dashboard may say it didn't answer in time. That clears by itself.
 

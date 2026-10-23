@@ -5,6 +5,7 @@ name = "Uptime Kuma"
 description = "Checks whether your websites, APIs and services are up, and tells you when they aren't. Status pages, many notification channels, a clear web interface."
 category = "Monitoring"
 website = "https://uptime.kuma.pet"
+logo = "logo.svg"
 after = """
 Open ${{uptime-kuma.URL}}, choose **SQLite** when it asks for a database (the simple choice: everything stays in its volume), and create the admin account. The first person to open it sets it up, so do that right away.
 

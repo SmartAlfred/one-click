@@ -10,12 +10,13 @@ folder merged here shows up on the page by itself.
 ## How it's laid out
 
 One folder per deploy. The folder's name is its address (`umami` → `smartalfred.com/one-click/umami`),
-and it holds one `smartalfred.toml`, and a `README.md` saying what the app is:
+and it holds one `smartalfred.toml`, a `README.md` saying what the app is, and the app's logo:
 
 ```
 umami/
   smartalfred.toml
   README.md
+  logo.svg
 ```
 
 The `README.md` is the longer text on the deploy's page (the catalog's card shows only the
@@ -32,7 +33,7 @@ name = "Umami"                    # required
 description = "Privacy-friendly web analytics you host yourself."
 category = "Analytics"
 website = "https://umami.is"
-logo = "logo.svg"                 # optional: a file in the folder, or a URL
+logo = "logo.svg"                 # optional: the app's logo, an SVG in the folder
 after = """
 Open ${{umami.URL}} and log in with `admin` / `umami`, then change the password.
 """
@@ -138,6 +139,9 @@ published image where the project offers one.
 - **Generate every password**: nobody should have to think of one, and none should be in the file.
 - **Say what to do first** under `after`: the default login, what to change.
 - **Say what it's for** in the folder's `README.md`: what it is, what people use it for, what's good to know.
+- **Give it its logo**: the project's own, from its repository or press kit, as `logo.svg` in the folder
+  (an SVG, at most 32 KB, drawn for a light background). smartalfred hands it out with the catalog, so
+  the pages showing it load nothing from elsewhere; a link to a logo somewhere else isn't taken.
 - **Keep it small**: the fewer services, the more servers it fits on. Say so in the description when it needs real memory.
 - **Mind the licence**: say so in the description when something isn't open source in the usual sense.
 - **Slow starters** (more than half a minute to open their port) should be `always_on` and have a `health_path`, and say in `after` that the first start takes a while.
