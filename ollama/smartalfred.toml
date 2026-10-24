@@ -39,10 +39,12 @@ OLLAMA_KEEP_ALIVE = "10m"         # a model leaves memory 10 minutes after its l
 [[services.ollama.volumes]]
 name = "ollama-models"
 path = "/root/.ollama"
+size = "20GB"
 
 [services.open-webui]
 image = "ghcr.io/open-webui/open-webui:main"
 port = 8080
+memory = "1GB"
 always_on = true                  # a slow starter: it loads its own small models first
 health_path = "/health"
 
@@ -59,3 +61,4 @@ WEBUI_SECRET_KEY = "generate"
 [[services.open-webui.volumes]]
 name = "open-webui-data"
 path = "/app/backend/data"
+size = "2GB"

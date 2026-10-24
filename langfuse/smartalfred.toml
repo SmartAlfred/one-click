@@ -36,6 +36,7 @@ required = true
 [services.langfuse]
 image = "docker.langfuse.com/langfuse/langfuse:4"
 port = 3000
+memory = "2GB"
 always_on = true                  # traces arrive at any time
 health_path = "/api/public/health"
 
@@ -87,6 +88,7 @@ LANGFUSE_INIT_PROJECT_SECRET_KEY = { generate = 40, prefix = "sk-lf-" }
 [services.langfuse-worker]
 image = "docker.langfuse.com/langfuse/langfuse-worker:4"
 port = 3030
+memory = "1GB"
 public = false
 
 [services.langfuse-worker.env]
@@ -123,6 +125,7 @@ LANGFUSE_S3_MEDIA_UPLOAD_PREFIX = "media/"
 [services.langfuse-clickhouse]
 image = "clickhouse/clickhouse-server:25.12"
 port = 8123
+memory = "2GB"
 public = false
 
 [services.langfuse-clickhouse.env]
@@ -135,6 +138,7 @@ CLICKHOUSE_PASSWORD = "generate:32"
 [[services.langfuse-clickhouse.volumes]]
 name = "langfuse-clickhouse-data"
 path = "/var/lib/clickhouse"
+size = "5GB"
 
 [[services.langfuse-clickhouse.volumes]]
 name = "langfuse-clickhouse-logs"
@@ -147,6 +151,7 @@ path = "/var/log/clickhouse-server"
 # longer developed upstream; here it's reachable only by Langfuse.
 image = "cgr.dev/chainguard/minio"
 port = 9000
+memory = "512MB"
 public = false
 entrypoint = ["sh", "-c"]
 # Makes the bucket (a directory) before the server starts.
@@ -161,6 +166,7 @@ MINIO_ROOT_PASSWORD = "generate:32"
 [[services.langfuse-storage.volumes]]
 name = "langfuse-storage-data"
 path = "/data"
+size = "5GB"
 
 # ---------- smartalfred's own databases: private, always on, a snapshot every day ----------
 

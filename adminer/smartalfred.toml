@@ -20,6 +20,7 @@ default = "postgres"
 [services.adminer]
 image = "adminer:5"
 port = 8080
+memory = "256MB"
 
 [services.adminer.env]
 ADMINER_DEFAULT_SERVER = "${DATABASE_HOST}"

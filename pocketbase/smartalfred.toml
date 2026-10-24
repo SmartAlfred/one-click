@@ -23,6 +23,7 @@ required = true
 # Built on your server from the Dockerfile next to this file.
 dockerfile = "Dockerfile"
 port = 8090
+memory = "256MB"
 health_path = "/api/health"
 
 [services.pocketbase.env]

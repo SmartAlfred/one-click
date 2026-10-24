@@ -18,6 +18,7 @@ The project's other services reach it at `http://meilisearch:7700`.
 # Meilisearch's data format changes between versions: pinned to a minor, upgrade on purpose.
 image = "getmeili/meilisearch:v1.54"
 port = 7700
+memory = "1GB"
 always_on = true                  # search should answer at once, not after a wake-up
 health_path = "/health"
 
@@ -31,3 +32,4 @@ MEILI_MASTER_KEY = "generate:40"
 [[services.meilisearch.volumes]]
 name = "meilisearch-data"
 path = "/meili_data"
+size = "2GB"

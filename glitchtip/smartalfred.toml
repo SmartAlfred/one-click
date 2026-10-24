@@ -22,6 +22,7 @@ default = "glitchtip@example.com"
 [services.glitchtip]
 image = "glitchtip/glitchtip:6"
 port = 8000
+memory = "1GB"
 always_on = true                  # errors arrive at any time
 health_path = "/_health/"
 

@@ -24,6 +24,7 @@ default = "Europe/Berlin"
 [services.n8n]
 image = "n8nio/n8n:stable"
 port = 5678
+memory = "1GB"
 always_on = true                  # schedules and webhooks need it awake
 health_path = "/healthz/readiness"
 

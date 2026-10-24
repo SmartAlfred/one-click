@@ -17,6 +17,7 @@ To look at a database in this project, add it in Metabase with the database's na
 [services.metabase]
 image = "metabase/metabase:latest"
 port = 3000
+memory = "2GB"
 always_on = true                  # it takes a minute to start: too long to wake for a visitor
 health_path = "/api/health"
 

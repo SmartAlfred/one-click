@@ -17,6 +17,7 @@ smartalfred fills in the password, and keeps it up to date. Any Redis client wor
 [services.valkey]
 image = "valkey/valkey:9-alpine"
 port = 6379
+memory = "256MB"
 public = false
 # Through the image's own entrypoint, so the server still runs as the valkey user; the password
 # comes from its secret, not from this file.
