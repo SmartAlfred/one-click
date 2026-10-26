@@ -127,9 +127,14 @@ image = "clickhouse/clickhouse-server:25.12"
 port = 8123
 memory = "2GB"
 public = false
+entrypoint = ["sh", "-c"]
+# Its log on the console, where the dashboard shows it, instead of in files nobody sees (at its
+# default level, trace, those would also fill a volume). Then the image's own start.
+command = ["printf '<clickhouse><logger><level>information</level><console>1</console><log></log><errorlog></errorlog></logger></clickhouse>' > /etc/clickhouse-server/config.d/console.xml && exec /entrypoint.sh"]
 
+# No CLICKHOUSE_DB: the database "default" always exists, and asking for it makes the image start
+# a server of its own just to create it before the real one.
 [services.langfuse-clickhouse.env]
-CLICKHOUSE_DB = "default"
 CLICKHOUSE_USER = "langfuse"
 
 [services.langfuse-clickhouse.secrets]
@@ -139,10 +144,6 @@ CLICKHOUSE_PASSWORD = "generate:32"
 name = "langfuse-clickhouse-data"
 path = "/var/lib/clickhouse"
 size = "5GB"
-
-[[services.langfuse-clickhouse.volumes]]
-name = "langfuse-clickhouse-logs"
-path = "/var/log/clickhouse-server"
 
 # ---------- file storage for the raw events ----------
 
