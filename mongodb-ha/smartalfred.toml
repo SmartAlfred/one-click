@@ -1,0 +1,160 @@
+# MongoDB HA: a three-member replica set, with HAProxy in front.
+# Each node runs MongoDB (built from the Dockerfile here, which sets up the set and its users on
+# the first start). When the primary goes, the other two elect a new one within seconds; drivers
+# follow it themselves, and HAProxy sends connections there for clients that want one address.
+
+[template]
+name = "MongoDB HA cluster"
+description = "A three-member MongoDB 8.0 replica set with automatic failover, and HAProxy in front for clients that want one address. Writes count once most members have them, so a failover loses nothing. Needs about 3.25 GB of memory."
+category = "Databases"
+website = "https://www.mongodb.com/docs/manual/replication/"
+logo = "logo.svg"
+after = """
+The nodes are built first, then form the replica set and make its users: give it a few minutes before the first connection.
+
+Give the app that uses it this variable (in the app's **Variables**, or its smartalfred.toml):
+
+`MONGODB_URI = mongodb://app:${{mongodb-ha.MONGO_PASSWORD}}@mongodb-ha-1:27017,mongodb-ha-2:27017,mongodb-ha-3:27017/app?replicaSet=rs0`
+
+smartalfred fills in the password, and keeps it up to date. MongoDB's drivers find the primary themselves and follow it when it changes, so this is the fastest failover.
+
+For tools that take one address, HAProxy: `mongodb://app:${{mongodb-ha.MONGO_PASSWORD}}@${{mongodb-ha.HOST}}:27017/app?directConnection=true` always reaches the primary, and port **27018** the secondaries, for reads that may be a moment behind.
+
+The admin user is `root` (database `admin`), with `MONGO_ROOT_PASSWORD` (below).
+"""
+
+# ---------- HAProxy: one address for clients that want one ----------
+
+[services.mongodb-ha]
+image = "haproxy:3.2-alpine"
+port = 27017
+memory = "256MB"
+public = false
+always_on = true
+# Its configuration, written where its user can, then HAProxy itself. Every 3 seconds it asks each
+# node isMaster (the bytes below are that question, in MongoDB's wire format, which needs no login)
+# and looks for "ismaster: true" in the answer, or "secondary: true"; connections to a node that
+# stops being what its port is for are closed, so clients reconnect to the right one.
+entrypoint = ["sh", "-c"]
+command = ['''
+cat > /tmp/haproxy.cfg <<'EOF'
+global
+  maxconn 2000
+
+resolvers project
+  parse-resolv-conf
+  hold valid 10s
+
+defaults
+  mode tcp
+  timeout connect 5s
+  timeout client 30m
+  timeout server 30m
+  timeout check 3s
+  default-server inter 3s fall 3 rise 2 on-marked-down shutdown-sessions resolvers project init-addr last,libc,none
+
+listen primary
+  bind :27017
+  balance first
+  option tcp-check
+  tcp-check connect
+  tcp-check send-binary 3a0000000100000000000000d40700000000000061646d696e2e24636d64000000000001000000130000001069734d6173746572000100000000
+  tcp-check expect binary 0869736d61737465720001
+  server mongodb-ha-1 mongodb-ha-1:27017 check
+  server mongodb-ha-2 mongodb-ha-2:27017 check
+  server mongodb-ha-3 mongodb-ha-3:27017 check
+
+listen secondaries
+  bind :27018
+  balance leastconn
+  option tcp-check
+  tcp-check connect
+  tcp-check send-binary 3a0000000100000000000000d40700000000000061646d696e2e24636d64000000000001000000130000001069734d6173746572000100000000
+  tcp-check expect binary 087365636f6e646172790001
+  server mongodb-ha-1 mongodb-ha-1:27017 check
+  server mongodb-ha-2 mongodb-ha-2:27017 check
+  server mongodb-ha-3 mongodb-ha-3:27017 check
+
+listen stats
+  mode http
+  bind :8404
+  stats enable
+  stats uri /
+  stats refresh 5s
+EOF
+exec haproxy -W -db -f /tmp/haproxy.cfg
+''']
+
+# The cluster's passwords live here, once; the nodes refer to them, and so do apps.
+[services.mongodb-ha.secrets]
+MONGO_PASSWORD = "generate:32"        # the app's: user app, database app
+MONGO_ROOT_PASSWORD = "generate:32"   # root
+MONGO_KEYFILE = "generate:64"         # how the members prove themselves to each other
+
+# ---------- the three nodes ----------
+
+[services.mongodb-ha-1]
+dockerfile = "Dockerfile"
+port = 27017
+memory = "1GB"
+public = false
+always_on = true
+
+[services.mongodb-ha-1.env]
+NODE = "mongodb-ha-1"
+PEERS = "mongodb-ha-1 mongodb-ha-2 mongodb-ha-3"
+MONGO_USER = "app"
+MONGO_DATABASE = "app"
+MONGO_PASSWORD = "${{mongodb-ha.MONGO_PASSWORD}}"
+MONGO_ROOT_PASSWORD = "${{mongodb-ha.MONGO_ROOT_PASSWORD}}"
+MONGO_KEYFILE = "${{mongodb-ha.MONGO_KEYFILE}}"
+
+[[services.mongodb-ha-1.volumes]]
+name = "mongodb-ha-1-data"
+path = "/data/db"
+size = "5GB"
+grow_up_to = "50GB"
+
+[services.mongodb-ha-2]
+dockerfile = "Dockerfile"
+port = 27017
+memory = "1GB"
+public = false
+always_on = true
+
+[services.mongodb-ha-2.env]
+NODE = "mongodb-ha-2"
+PEERS = "mongodb-ha-1 mongodb-ha-2 mongodb-ha-3"
+MONGO_USER = "app"
+MONGO_DATABASE = "app"
+MONGO_PASSWORD = "${{mongodb-ha.MONGO_PASSWORD}}"
+MONGO_ROOT_PASSWORD = "${{mongodb-ha.MONGO_ROOT_PASSWORD}}"
+MONGO_KEYFILE = "${{mongodb-ha.MONGO_KEYFILE}}"
+
+[[services.mongodb-ha-2.volumes]]
+name = "mongodb-ha-2-data"
+path = "/data/db"
+size = "5GB"
+grow_up_to = "50GB"
+
+[services.mongodb-ha-3]
+dockerfile = "Dockerfile"
+port = 27017
+memory = "1GB"
+public = false
+always_on = true
+
+[services.mongodb-ha-3.env]
+NODE = "mongodb-ha-3"
+PEERS = "mongodb-ha-1 mongodb-ha-2 mongodb-ha-3"
+MONGO_USER = "app"
+MONGO_DATABASE = "app"
+MONGO_PASSWORD = "${{mongodb-ha.MONGO_PASSWORD}}"
+MONGO_ROOT_PASSWORD = "${{mongodb-ha.MONGO_ROOT_PASSWORD}}"
+MONGO_KEYFILE = "${{mongodb-ha.MONGO_KEYFILE}}"
+
+[[services.mongodb-ha-3.volumes]]
+name = "mongodb-ha-3-data"
+path = "/data/db"
+size = "5GB"
+grow_up_to = "50GB"

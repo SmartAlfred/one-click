@@ -1,0 +1,46 @@
+# What's the same on every node. The rest comes from node.sh: the node's name and addresses, etcd,
+# and the passwords (as PATRONI_* variables).
+
+restapi:
+  listen: 0.0.0.0:8008
+
+bootstrap:
+  # The cluster's settings, written to etcd when it's first made; change them later with
+  # `patronictl edit-config` on any node.
+  dcs:
+    ttl: 30
+    loop_wait: 10
+    retry_timeout: 10
+    # A replica this far behind (in bytes) doesn't take over.
+    maximum_lag_on_failover: 1048576
+    # A commit waits until a replica has it too, so a failover loses nothing. With both replicas
+    # gone the primary goes on alone (synchronous_mode_strict is off).
+    synchronous_mode: true
+    postgresql:
+      use_pg_rewind: true
+      use_slots: true
+      parameters:
+        max_connections: 200
+        shared_buffers: 256MB
+        wal_level: replica
+        hot_standby: "on"
+        max_wal_senders: 10
+        max_replication_slots: 10
+        wal_keep_size: 256MB
+        password_encryption: scram-sha-256
+  initdb:
+    - encoding: UTF8
+    - data-checksums
+  # Once, on the first primary: the app's user and database.
+  post_init: /usr/local/bin/post-init.sh
+
+postgresql:
+  listen: 0.0.0.0:5432
+  data_dir: /var/lib/postgresql/data/pgdata
+  # A new replica copies the primary at once, instead of after its next checkpoint (minutes).
+  basebackup:
+    - checkpoint: fast
+  pg_hba:
+    - local all all peer
+    - host replication replicator all scram-sha-256
+    - host all all all scram-sha-256

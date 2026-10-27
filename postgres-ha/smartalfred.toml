@@ -1,0 +1,156 @@
+# PostgreSQL HA: three PostgreSQL nodes kept by Patroni, with HAProxy in front.
+# Each node runs PostgreSQL, Patroni and a member of a three-node etcd (built from the Dockerfile
+# here); one is the primary, two are replicas. When the primary goes, a replica takes over within
+# about half a minute and HAProxy sends connections there.
+
+[template]
+name = "PostgreSQL HA cluster"
+description = "Three PostgreSQL 17 nodes with automatic failover (Patroni) and HAProxy in front: apps connect to one address and always reach the primary. Commits wait for a replica, so a failover loses nothing. Needs about 3.25 GB of memory."
+category = "Databases"
+website = "https://patroni.readthedocs.io"
+logo = "logo.svg"
+after = """
+The nodes are built first, then find each other and choose a primary: give it a few minutes before the first connection. Until then HAProxy has nowhere to send it.
+
+Give the app that uses it this variable (in the app's **Variables**, or its smartalfred.toml):
+
+`DATABASE_URL = postgres://app:${{postgres-ha.POSTGRES_PASSWORD}}@${{postgres-ha.HOST}}:5432/app`
+
+smartalfred fills in the password, and keeps it up to date. Port **5432** always reaches the primary, for reads and writes. Port **5433** reaches the replicas, for reads that may be a moment behind.
+
+To see which node is the primary, open a shell on any of them and run `patronictl list`; `patronictl switchover` moves the primary on purpose. The superuser is `postgres`, with `POSTGRES_SUPERUSER_PASSWORD` (below).
+"""
+
+# ---------- HAProxy: the one address apps use ----------
+
+[services.postgres-ha]
+image = "haproxy:3.2-alpine"
+port = 5432
+memory = "256MB"
+public = false
+always_on = true
+# Its configuration, written where its user can, then HAProxy itself. Each node's Patroni answers
+# /primary with 200 only on the primary, and /replica only on a healthy replica; connections to a
+# node that stops being what its port is for are closed, so clients reconnect to the right one.
+entrypoint = ["sh", "-c"]
+command = ['''
+cat > /tmp/haproxy.cfg <<'EOF'
+global
+  maxconn 2000
+
+resolvers project
+  parse-resolv-conf
+  hold valid 10s
+
+defaults
+  mode tcp
+  timeout connect 5s
+  timeout client 30m
+  timeout server 30m
+  timeout check 3s
+  default-server inter 3s fall 3 rise 2 on-marked-down shutdown-sessions resolvers project init-addr last,libc,none
+
+listen primary
+  bind :5432
+  option httpchk GET /primary
+  http-check expect status 200
+  server postgres-ha-1 postgres-ha-1:5432 check port 8008
+  server postgres-ha-2 postgres-ha-2:5432 check port 8008
+  server postgres-ha-3 postgres-ha-3:5432 check port 8008
+
+listen replicas
+  bind :5433
+  balance leastconn
+  option httpchk GET /replica
+  http-check expect status 200
+  server postgres-ha-1 postgres-ha-1:5432 check port 8008
+  server postgres-ha-2 postgres-ha-2:5432 check port 8008
+  server postgres-ha-3 postgres-ha-3:5432 check port 8008
+
+listen stats
+  mode http
+  bind :8404
+  stats enable
+  stats uri /
+  stats refresh 5s
+EOF
+exec haproxy -W -db -f /tmp/haproxy.cfg
+''']
+
+# The cluster's passwords live here, once; the nodes refer to them, and so do apps.
+[services.postgres-ha.secrets]
+POSTGRES_PASSWORD = "generate:32"             # the app's: user app, database app
+POSTGRES_SUPERUSER_PASSWORD = "generate:32"   # postgres
+REPLICATION_PASSWORD = "generate:32"          # replicator, which the replicas copy with
+CLUSTER_PASSWORD = "generate:32"              # etcd's and Patroni's: who may change the cluster
+
+# ---------- the three nodes ----------
+
+[services.postgres-ha-1]
+dockerfile = "Dockerfile"
+port = 5432
+memory = "1GB"
+public = false
+always_on = true
+
+[services.postgres-ha-1.env]
+NODE = "postgres-ha-1"
+PEERS = "postgres-ha-1 postgres-ha-2 postgres-ha-3"
+POSTGRES_USER = "app"
+POSTGRES_DB = "app"
+POSTGRES_PASSWORD = "${{postgres-ha.POSTGRES_PASSWORD}}"
+POSTGRES_SUPERUSER_PASSWORD = "${{postgres-ha.POSTGRES_SUPERUSER_PASSWORD}}"
+REPLICATION_PASSWORD = "${{postgres-ha.REPLICATION_PASSWORD}}"
+CLUSTER_PASSWORD = "${{postgres-ha.CLUSTER_PASSWORD}}"
+
+[[services.postgres-ha-1.volumes]]
+name = "postgres-ha-1-data"
+path = "/var/lib/postgresql/data"
+size = "5GB"
+grow_up_to = "50GB"
+
+[services.postgres-ha-2]
+dockerfile = "Dockerfile"
+port = 5432
+memory = "1GB"
+public = false
+always_on = true
+
+[services.postgres-ha-2.env]
+NODE = "postgres-ha-2"
+PEERS = "postgres-ha-1 postgres-ha-2 postgres-ha-3"
+POSTGRES_USER = "app"
+POSTGRES_DB = "app"
+POSTGRES_PASSWORD = "${{postgres-ha.POSTGRES_PASSWORD}}"
+POSTGRES_SUPERUSER_PASSWORD = "${{postgres-ha.POSTGRES_SUPERUSER_PASSWORD}}"
+REPLICATION_PASSWORD = "${{postgres-ha.REPLICATION_PASSWORD}}"
+CLUSTER_PASSWORD = "${{postgres-ha.CLUSTER_PASSWORD}}"
+
+[[services.postgres-ha-2.volumes]]
+name = "postgres-ha-2-data"
+path = "/var/lib/postgresql/data"
+size = "5GB"
+grow_up_to = "50GB"
+
+[services.postgres-ha-3]
+dockerfile = "Dockerfile"
+port = 5432
+memory = "1GB"
+public = false
+always_on = true
+
+[services.postgres-ha-3.env]
+NODE = "postgres-ha-3"
+PEERS = "postgres-ha-1 postgres-ha-2 postgres-ha-3"
+POSTGRES_USER = "app"
+POSTGRES_DB = "app"
+POSTGRES_PASSWORD = "${{postgres-ha.POSTGRES_PASSWORD}}"
+POSTGRES_SUPERUSER_PASSWORD = "${{postgres-ha.POSTGRES_SUPERUSER_PASSWORD}}"
+REPLICATION_PASSWORD = "${{postgres-ha.REPLICATION_PASSWORD}}"
+CLUSTER_PASSWORD = "${{postgres-ha.CLUSTER_PASSWORD}}"
+
+[[services.postgres-ha-3.volumes]]
+name = "postgres-ha-3-data"
+path = "/var/lib/postgresql/data"
+size = "5GB"
+grow_up_to = "50GB"

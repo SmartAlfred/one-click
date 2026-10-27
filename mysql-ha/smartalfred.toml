@@ -1,0 +1,157 @@
+# MySQL HA: three MySQL nodes in a Group Replication group (single primary), with HAProxy in front.
+# Each node runs MySQL and a small script that keeps it in the group (built from the Dockerfile
+# here). When the primary goes, the other two choose a new one within seconds and HAProxy sends
+# connections there.
+
+[template]
+name = "MySQL HA cluster"
+description = "Three MySQL 8.4 nodes in a Group Replication group with automatic failover, and HAProxy in front: apps connect to one address and always reach the primary. A commit counts once most nodes have it, so a failover loses nothing. Needs about 3.25 GB of memory."
+category = "Databases"
+website = "https://dev.mysql.com/doc/refman/8.4/en/group-replication.html"
+logo = "logo.svg"
+after = """
+The nodes are built first, then form their group: give it a few minutes before the first connection. Until then HAProxy has nowhere to send it.
+
+Give the app that uses it this variable (in the app's **Variables**, or its smartalfred.toml):
+
+`DATABASE_URL = mysql://app:${{mysql-ha.MYSQL_PASSWORD}}@${{mysql-ha.HOST}}:3306/app`
+
+smartalfred fills in the password, and keeps it up to date. Port **3306** always reaches the primary, for reads and writes. Port **3307** reaches the other two, for reads that may be a moment behind.
+
+Every table needs a primary key: Group Replication refuses changes to a table without one. `root` has `MYSQL_ROOT_PASSWORD` (below); in a shell on a node, `mysql` signs in as root by itself.
+"""
+
+# ---------- HAProxy: the one address apps use ----------
+
+[services.mysql-ha]
+image = "haproxy:3.2-alpine"
+port = 3306
+memory = "256MB"
+public = false
+always_on = true
+# Its configuration, written where its user can, then HAProxy itself. Each node answers /primary on
+# port 8008 with 200 only while it's the primary of a group with a majority, and /replica only as a
+# secondary; connections to a node that stops being what its port is for are closed, so clients
+# reconnect to the right one.
+entrypoint = ["sh", "-c"]
+command = ['''
+cat > /tmp/haproxy.cfg <<'EOF'
+global
+  maxconn 2000
+
+resolvers project
+  parse-resolv-conf
+  hold valid 10s
+
+defaults
+  mode tcp
+  timeout connect 5s
+  timeout client 30m
+  timeout server 30m
+  timeout check 3s
+  default-server inter 3s fall 3 rise 2 on-marked-down shutdown-sessions resolvers project init-addr last,libc,none
+
+listen primary
+  bind :3306
+  balance first
+  option httpchk GET /primary
+  http-check expect status 200
+  server mysql-ha-1 mysql-ha-1:3306 check port 8008
+  server mysql-ha-2 mysql-ha-2:3306 check port 8008
+  server mysql-ha-3 mysql-ha-3:3306 check port 8008
+
+listen replicas
+  bind :3307
+  balance leastconn
+  option httpchk GET /replica
+  http-check expect status 200
+  server mysql-ha-1 mysql-ha-1:3306 check port 8008
+  server mysql-ha-2 mysql-ha-2:3306 check port 8008
+  server mysql-ha-3 mysql-ha-3:3306 check port 8008
+
+listen stats
+  mode http
+  bind :8404
+  stats enable
+  stats uri /
+  stats refresh 5s
+EOF
+exec haproxy -W -db -f /tmp/haproxy.cfg
+''']
+
+# The cluster's passwords live here, once; the nodes refer to them, and so do apps.
+[services.mysql-ha.secrets]
+MYSQL_PASSWORD = "generate:32"        # the app's: user app, database app
+MYSQL_ROOT_PASSWORD = "generate:32"   # root
+REPLICATION_PASSWORD = "generate:32"  # replicator, which the nodes copy and talk to each other with
+
+# ---------- the three nodes ----------
+
+[services.mysql-ha-1]
+dockerfile = "Dockerfile"
+port = 3306
+memory = "1GB"
+public = false
+always_on = true
+
+[services.mysql-ha-1.env]
+NODE = "mysql-ha-1"
+PEERS = "mysql-ha-1 mysql-ha-2 mysql-ha-3"
+GROUP_NAME = "e70ddc39-7440-4881-a3c1-955e0bbbf3e6"
+MYSQL_USER = "app"
+MYSQL_DATABASE = "app"
+MYSQL_PASSWORD = "${{mysql-ha.MYSQL_PASSWORD}}"
+MYSQL_ROOT_PASSWORD = "${{mysql-ha.MYSQL_ROOT_PASSWORD}}"
+REPLICATION_PASSWORD = "${{mysql-ha.REPLICATION_PASSWORD}}"
+
+[[services.mysql-ha-1.volumes]]
+name = "mysql-ha-1-data"
+path = "/var/lib/mysql"
+size = "5GB"
+grow_up_to = "50GB"
+
+[services.mysql-ha-2]
+dockerfile = "Dockerfile"
+port = 3306
+memory = "1GB"
+public = false
+always_on = true
+
+[services.mysql-ha-2.env]
+NODE = "mysql-ha-2"
+PEERS = "mysql-ha-1 mysql-ha-2 mysql-ha-3"
+GROUP_NAME = "e70ddc39-7440-4881-a3c1-955e0bbbf3e6"
+MYSQL_USER = "app"
+MYSQL_DATABASE = "app"
+MYSQL_PASSWORD = "${{mysql-ha.MYSQL_PASSWORD}}"
+MYSQL_ROOT_PASSWORD = "${{mysql-ha.MYSQL_ROOT_PASSWORD}}"
+REPLICATION_PASSWORD = "${{mysql-ha.REPLICATION_PASSWORD}}"
+
+[[services.mysql-ha-2.volumes]]
+name = "mysql-ha-2-data"
+path = "/var/lib/mysql"
+size = "5GB"
+grow_up_to = "50GB"
+
+[services.mysql-ha-3]
+dockerfile = "Dockerfile"
+port = 3306
+memory = "1GB"
+public = false
+always_on = true
+
+[services.mysql-ha-3.env]
+NODE = "mysql-ha-3"
+PEERS = "mysql-ha-1 mysql-ha-2 mysql-ha-3"
+GROUP_NAME = "e70ddc39-7440-4881-a3c1-955e0bbbf3e6"
+MYSQL_USER = "app"
+MYSQL_DATABASE = "app"
+MYSQL_PASSWORD = "${{mysql-ha.MYSQL_PASSWORD}}"
+MYSQL_ROOT_PASSWORD = "${{mysql-ha.MYSQL_ROOT_PASSWORD}}"
+REPLICATION_PASSWORD = "${{mysql-ha.REPLICATION_PASSWORD}}"
+
+[[services.mysql-ha-3.volumes]]
+name = "mysql-ha-3-data"
+path = "/var/lib/mysql"
+size = "5GB"
+grow_up_to = "50GB"
