@@ -1,15 +1,15 @@
 # smartalfred one-click deploys
 
-Ready-made stacks you can put into a [smartalfred](https://smartalfred.com) project with one click:
+Ready-made stacks you can put into a [smartalfred](https://runalf.com) project with one click:
 an app together with its database and settings. Browse them at
-[smartalfred.com/one-click](https://smartalfred.com/one-click).
+[runalf.com/one-click](https://runalf.com/one-click).
 
 This repository **is** the catalog. smartalfred reads it as it is (about once a minute), so a
 folder merged here shows up on the page by itself.
 
 ## How it's laid out
 
-One folder per deploy. The folder's name is its address (`umami` → `smartalfred.com/one-click/umami`),
+One folder per deploy. The folder's name is its address (`umami` → `runalf.com/one-click/umami`),
 and it holds one `smartalfred.toml`, a `README.md` saying what the app is, and the app's logo:
 
 ```
@@ -23,7 +23,7 @@ The `README.md` is the longer text on the deploy's page (the catalog's card show
 `description`): what the app is, what people use it for, and what's good to know about this setup.
 Its `# Title` line is left out there; `###` headings, lists, **bold**, `code` and links are shown.
 
-It's the same file a project keeps beside its code ([its docs](https://smartalfred.com/docs/smartalfred-toml)):
+It's the same file a project keeps beside its code ([its docs](https://runalf.com/docs/smartalfred-toml)):
 services, databases and buckets, wired together with references, secrets generated. What the
 catalog shows for it lives in the same file, under `[template]`.
 
@@ -151,5 +151,5 @@ published image where the project offers one.
 1. Fork, add a folder with a `smartalfred.toml`, open a pull request.
 2. Try it before: put the file (without `[template]`, with values for any `${…}`) in an empty
    directory and run `smartalfred deploy` into a test project.
-3. A folder that can't be read is left out of the catalog; `https://api.smartalfred.com/api/v1/templates`
+3. A folder that can't be read is left out of the catalog; `https://api.runalf.com/api/v1/templates`
    lists such folders under `problems`, with the reason.
