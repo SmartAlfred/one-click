@@ -28,7 +28,8 @@ memory = "2GB"
 always_on = true                  # a slow starter, and it has to answer for your app
 entrypoint = "/bin/sh"
 # It answers only for the names it's told, so unless told otherwise, this service's own address.
-command = ["-c", "[ -n \"$SERVER_NAME\" ] || export SERVER_NAME=$(echo \"$PUBLIC_URL\" | sed 's,https://,,'); exec /usr/share/bunkerweb/all-in-one/entrypoint.sh"]
+# Its nginx asks Docker's DNS (127.0.0.11) unless told otherwise, which isn't there: the container's own.
+command = ["-c", "[ -n \"$SERVER_NAME\" ] || export SERVER_NAME=$(echo \"$PUBLIC_URL\" | sed 's,https://,,'); [ -n \"$DNS_RESOLVERS\" ] || export DNS_RESOLVERS=$(awk '/^nameserver/{print $2; exit}' /etc/resolv.conf); exec /usr/share/bunkerweb/all-in-one/entrypoint.sh"]
 
 [services.bunkerweb.env]
 PUBLIC_URL = "${{bunkerweb.URL}}"
