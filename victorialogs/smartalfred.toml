@@ -1,0 +1,58 @@
+# VictoriaLogs with Grafana: a place of your own for the lines your log drain sends, small enough
+# for the smallest size. VictoriaLogs has no login, so it's for the team only; Grafana has its own.
+
+[template]
+name = "VictoriaLogs + Grafana"
+description = "Keep your services' logs yourself: a light log store for your log drain, searched from Grafana. Small and cheap to run."
+category = "Monitoring"
+website = "https://docs.victoriametrics.com/victorialogs/"
+logo = "logo.svg"
+after = """
+Send your logs here with a [log drain](https://runalf.com/docs/log-drains) (it's handed over inside Alf, team-only or not):
+
+```bash
+alf drains add https --url '${{victorialogs.URL}}/insert/jsonline?_stream_fields=service,project,stream&_msg_field=line&_time_field=at'
+```
+
+Then open ${{grafana.URL}} and log in as `admin` with the `GF_SECURITY_ADMIN_PASSWORD` below. VictoriaLogs is already set up there: **Explore** shows your logs a minute or so after the drain starts.
+
+Grafana's first start takes a minute: it downloads the VictoriaLogs plugin.
+"""
+
+[services.victorialogs]
+image = "victoriametrics/victoria-logs:v1.53.0"
+port = 9428
+memory = "256MB"
+always_on = true                  # logs arrive around the clock
+access = "team"                   # it has no login of its own
+health_path = "/health"
+entrypoint = "/victoria-logs-prod"
+command = ["-storageDataPath=/victoria-logs-data", "-httpListenAddr=:9428", "-retentionPeriod=14d", "-retention.maxDiskSpaceUsageBytes=9GiB"]
+
+[[services.victorialogs.volumes]]
+name = "victorialogs-data"
+path = "/victoria-logs-data"
+size = "10GB"
+
+[services.grafana]
+image = "grafana/grafana:13.2.5"
+port = 3000
+memory = "512MB"
+always_on = true                  # a slow starter: it downloads its plugin first
+health_path = "/api/health"
+entrypoint = "/bin/sh"
+command = ["-c", "mkdir -p /var/lib/grafana/provisioning/datasources && printf 'apiVersion: 1\\ndatasources:\\n  - name: VictoriaLogs\\n    type: victoriametrics-logs-datasource\\n    access: proxy\\n    url: http://victorialogs:9428\\n    isDefault: true\\n' > /var/lib/grafana/provisioning/datasources/victorialogs.yaml && exec /run.sh"]
+
+[services.grafana.env]
+GF_PLUGINS_PREINSTALL = "victoriametrics-logs-datasource"
+GF_PATHS_PROVISIONING = "/var/lib/grafana/provisioning"
+GF_SERVER_ROOT_URL = "${{grafana.URL}}"
+GF_USERS_ALLOW_SIGN_UP = "false"
+
+[services.grafana.secrets]
+GF_SECURITY_ADMIN_PASSWORD = "generate"
+
+[[services.grafana.volumes]]
+name = "grafana-data"
+path = "/var/lib/grafana"
+size = "1GB"

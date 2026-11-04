@@ -1,0 +1,51 @@
+# OpenObserve: logs, metrics and traces in one program with its own page. AGPL-3.0.
+
+[template]
+name = "OpenObserve"
+description = "Logs, metrics and traces in one program, with its own search page and dashboards. A home for your log drain. Open source under the AGPL."
+category = "Monitoring"
+website = "https://openobserve.ai"
+logo = "logo.svg"
+after = """
+Open ${{openobserve.URL}} and log in with ${ADMIN_EMAIL} and the `ZO_ROOT_USER_PASSWORD` below.
+
+To send your logs here, add a [log drain](https://runalf.com/docs/log-drains), with the password in place of `PASSWORD`:
+
+```bash
+alf drains add otlp --endpoint '${{openobserve.URL}}/api/default/v1/logs' --header "Authorization: Basic $$(printf '%s' '${ADMIN_EMAIL}:PASSWORD' | base64)"
+```
+
+They show up under **Logs** a minute or so later.
+"""
+
+[template.inputs.ADMIN_EMAIL]
+label = "Admin email"
+description = "What you log in with."
+required = true
+
+[template.inputs.RETENTION_DAYS]
+label = "Days to keep"
+description = "Older data is deleted. The volume is 20 GB: keep enough room."
+default = "14"
+
+[services.openobserve]
+image = "public.ecr.aws/zinclabs/openobserve:latest"
+port = 5080
+memory = "1GB"
+always_on = true                  # logs arrive around the clock
+health_path = "/healthz"
+
+[services.openobserve.env]
+ZO_ROOT_USER_EMAIL = "${ADMIN_EMAIL}"
+ZO_DATA_DIR = "/data"
+ZO_COMPACT_DATA_RETENTION_DAYS = "${RETENTION_DAYS}"
+ZO_TELEMETRY = "false"
+
+[services.openobserve.secrets]
+# It insists on a lowercase and an uppercase letter, a digit and a special character.
+ZO_ROOT_USER_PASSWORD = { generate = 24, prefix = "aA1." }
+
+[[services.openobserve.volumes]]
+name = "openobserve-data"
+path = "/data"
+size = "20GB"

@@ -1,0 +1,53 @@
+# BunkerWeb: a web application firewall in front of one of your apps. It starts in detection-only
+# mode, so a false alarm can't lock visitors out.
+
+[template]
+name = "BunkerWeb"
+description = "A web application firewall for one of your apps: OWASP rules against SQL injection and XSS, security headers and bad-behaviour bans. Needs about 1 GB of memory."
+category = "Security"
+website = "https://www.bunkerweb.io"
+logo = "logo.svg"
+after = """
+Visitors should now use ${{bunkerweb.URL}}. **Two things to do first:**
+
+1. **Make your app private**, or attackers just go around the firewall: `public = false`, or turn off **Public** in its settings. It's forwarding to `${UPSTREAM}`.
+2. **Move your domain** to this service, and add it to `SERVER_NAME` here (space-separated, with this service's own address too).
+
+It only **detects** for now: attacks are logged here, not stopped. Read this service's logs for a few days (look for `ModSecurity`), and when your real traffic isn't setting it off, set `MODSECURITY_SEC_RULE_ENGINE` to `On`.
+"""
+
+[template.inputs.UPSTREAM]
+label = "Your app"
+description = "Its name and port inside the project, like web:3000. It has to be in the same project."
+required = true
+
+[services.bunkerweb]
+image = "bunkerity/bunkerweb-all-in-one:1.6.17"
+port = 8080
+memory = "2GB"
+always_on = true                  # a slow starter, and it has to answer for your app
+entrypoint = "/bin/sh"
+# It answers only for the names it's told, so unless told otherwise, this service's own address.
+command = ["-c", "[ -n \"$SERVER_NAME\" ] || export SERVER_NAME=$(echo \"$PUBLIC_URL\" | sed 's,https://,,'); exec /usr/share/bunkerweb/all-in-one/entrypoint.sh"]
+
+[services.bunkerweb.env]
+PUBLIC_URL = "${{bunkerweb.URL}}"
+USE_REVERSE_PROXY = "yes"
+REVERSE_PROXY_URL = "/"
+REVERSE_PROXY_HOST = "http://${UPSTREAM}"
+REVERSE_PROXY_WS = "yes"
+# Alf's own proxy is what connects to it: the visitor's address is in this header.
+USE_REAL_IP = "yes"
+REAL_IP_HEADER = "X-Forwarded-For"
+REAL_IP_FROM = "10.0.0.0/8 172.16.0.0/12 192.168.0.0/16"
+# Alf gives it HTTPS already.
+AUTO_LETS_ENCRYPT = "no"
+USE_MODSECURITY = "yes"
+MODSECURITY_SEC_RULE_ENGINE = "DetectionOnly"
+ALLOWED_METHODS = "GET|POST|HEAD|PUT|PATCH|DELETE|OPTIONS"
+USE_ANTIBOT = "no"
+
+[[services.bunkerweb.volumes]]
+name = "bunkerweb-data"
+path = "/data"
+size = "1GB"
