@@ -47,6 +47,8 @@ USE_MODSECURITY = "yes"
 MODSECURITY_SEC_RULE_ENGINE = "DetectionOnly"
 ALLOWED_METHODS = "GET|POST|HEAD|PUT|PATCH|DELETE|OPTIONS"
 USE_ANTIBOT = "no"
+# Otherwise its own HTML page replaces the app's errors, which breaks anything with a JSON API.
+INTERCEPTED_ERROR_CODES = ""
 
 [[services.bunkerweb.volumes]]
 name = "bunkerweb-data"
